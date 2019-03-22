@@ -1,4 +1,4 @@
-# yafjl [![Build Status][travis-image]][travis-url]
+﻿# yafjl [![Build Status][travis-image]][travis-url]
 Yet another functional java library, for your convenience.
 
 ## How It Works
@@ -7,7 +7,7 @@ Yet another functional java library, for your convenience.
 
 ## License
 
-MIT © [Kirk Bulis](http://github.com/kbulis)
+MIT © 2019 [Kirk Bulis](http://github.com/kbulis)
 
 [travis-image]: https://travis-ci.org/kbulis/yafjl.svg?branch=master
 [travis-url]: https://travis-ci.org/kbulis/yafjl
