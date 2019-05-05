@@ -29,6 +29,7 @@ public class Core {
             return null;
         }
 
+        @SafeVarargs
         private Adapt(final T... array) {
             this.array = array;
         }
@@ -38,10 +39,11 @@ public class Core {
     /**
      * ...
      *
-     * @param items
-     * @param <T>
+     * @param items array of typed items to iterate
+     * @param <T> type of items
      *
      */
+    @SafeVarargs
     public static <T> Iterator<T> adapt(final T... items) {
         return new Adapt<>(items);
     }
@@ -174,9 +176,8 @@ public class Core {
         }
 
         public void one() {
-            while (this.source.hasNext()) {
+            if (this.source.hasNext()) {
                 this.source.next();
-                return;
             }
         }
 
@@ -226,8 +227,8 @@ public class Core {
      * Found 'a'
      * </pre>
      *
-     * @param source
-     * @param <T>
+     * @param source iterator of items
+     * @param <T> type of items
      */
     public static <T> In<T> in(final Iterator<T> source) {
         return new In<>(source);
