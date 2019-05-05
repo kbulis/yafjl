@@ -1,31 +1,41 @@
 package com.unowmo.code.yafjl.testing;
 
-import static com.unowmo.code.yafjl.Core.*;
-
-import java.util.ArrayList;
 import org.junit.Test;
+import static com.unowmo.code.yafjl.Core.adapt;
+import static com.unowmo.code.yafjl.Core.in;
 
 public class CoreTest {
 
     @Test
     public void testCore() {
-        Iterable<String> sample = new ArrayList<String>() {{
-            this.add("testing");
-            this.add("foo");
-            this.add("testing");
-        }};
+        // ...
 
-        try {
-            find("testing").in(sample).then(match -> {
-                throw new Exception("Oops!");
+        in(adapt("a", "b", "c", "a"))
+            .derive((item) -> item.equals("a") ? 1 : 0)
+            .each((item) -> {
+                System.out.println("Found '" + item + "'");
             })
-            .none(() -> System.out.println("Nothing!"))
-            .oops(System.out::println)
-            .oops(System.out::println);
-        }
-        catch (final Exception eX) {
-            System.err.println(eX.getMessage());
-        }
+            .reduce((item, total) -> {
+                return total += item;
+            }, 0);
+
+        // ...
+
+        in(adapt("a", "b", "c", "a"))
+            .filter((item) -> item.equals("a"))
+            .each((item) -> {
+                System.out.println("Found '" + item + "'");
+            })
+            .all();
+
+        // ...
+
+        in(adapt("a", "b", "c", "a"))
+            .filter((item) -> item.equals("a"))
+            .each((item) -> {
+                System.out.println("Found '" + item + "'");
+            })
+            .one();
     }
 
 }

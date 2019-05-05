@@ -1,112 +1,236 @@
 package com.unowmo.code.yafjl;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Consumer;
+import java.util.Iterator;
+import java.util.function.*;
 
 /**
  * Core
  *
- * ...
+ * Keeping things lightweight. More to come soon...
  *
  */
 public class Core {
 
-    public interface ConsumerWithThrows<T> {
+    public static class Adapt<T> implements Iterator<T> {
+        private final T [] array;
+        private int index = 0;
 
-        void accept(final T item) throws Exception;
+        @Override
+        public boolean hasNext() {
+            return this.array != null && this.index < this.array.length;
+        }
 
-    }
-
-    public interface FunctionWithThrows {
-
-        void launch() throws Exception;
-
-    }
-
-    public static class In<T> {
-        private final List<T> found;
-        private final Exception caught;
-
-        public In<T> then(final ConsumerWithThrows<T> c) {
-            if (this.found != null && this.found.size() > 0) {
-                for (final T item : this.found) {
-                    if (c != null) {
-                        try {
-                            c.accept(item);
-                        }
-                        catch (final Exception eX) {
-                            return new In<>(this.found, eX);
-                        }
-                    }
-                }
+        @Override
+        public T next() {
+            if (this.array != null && this.index < this.array.length) {
+                return this.array[this.index++];
             }
 
-            return this;
+            return null;
         }
 
-        public In<T> none(final FunctionWithThrows f) {
-            if (this.found == null || this.found.size() == 0) {
-                if (f != null) {
-                    try {
-                        f.launch();
-                    }
-                    catch (final Exception eX) {
-                        return new In<>(this.found, eX);
-                    }
-                }
-            }
-
-            return this;
-        }
-
-        public In<T> oops(final Consumer<Exception> c) {
-            if (this.caught != null) {
-                if (c != null) {
-                    c.accept(this.caught);
-                }
-            }
-
-            return this;
-        }
-
-        private In(final List<T> found, final Exception caught) {
-            this.found = found;
-            this.caught = caught;
-        }
-
-        private In(final List<T> found) {
-            this.found = found;
-            this.caught = null;
+        private Adapt(final T... array) {
+            this.array = array;
         }
 
     }
 
-    public static class Find<T> {
-        private final T pattern;
+    /**
+     * ...
+     *
+     * @param items
+     * @param <T>
+     *
+     */
+    public static <T> Iterator<T> adapt(final T... items) {
+        return new Adapt<>(items);
+    }
 
-        public In<T> in(final Iterable<T> iterable) {
-            final ArrayList<T> found = new ArrayList<>();
+    private static class Derive<T, X> implements Iterator<X> {
+        private final Function<T, X> transform;
+        private final Iterator<T> source;
 
-            if (iterable != null && this.pattern != null) {
-                for (final T item : iterable) {
-                    if (item.equals(pattern)) {
-                        found.add(item);
-                    }
-                }
-            }
-
-            return new In<>(found);
+        @Override
+        public boolean hasNext() {
+            return this.source.hasNext();
         }
 
-        private Find(final T pattern) {
-            this.pattern = pattern;
+        @Override
+        public X next() {
+            if (this.transform != null) {
+                return this.transform.apply(this.source.next());
+            }
+
+            return null;
+        }
+
+        private Derive(final Function<T, X> transform, final Iterator<T> source) {
+            this.transform = transform;
+            this.source = source;
         }
 
     }
 
-    public static <T> Find<T> find(final T pattern) {
-        return new Find<>(pattern);
+    private static class Filter<T> implements Iterator<T> {
+        private final Predicate<T> filter;
+        private final Iterator<T> source;
+
+        @Override
+        public boolean hasNext() {
+            return this.source.hasNext();
+        }
+
+        @Override
+        public T next() {
+            if (this.filter != null) {
+                do {
+                    final T item = this.source.next();
+
+                    if (this.filter.test(item)) {
+                        return item;
+                    }
+                }
+                while (this.source.hasNext());
+            }
+
+            return this.source.next();
+        }
+
+        private Filter(final Predicate<T> filter, final Iterator<T> source) {
+            this.filter = filter;
+            this.source = source;
+        }
+
+    }
+
+    private static class Each<T> implements Iterator<T> {
+        private final Consumer<T> each;
+        private final Iterator<T> source;
+
+        @Override
+        public boolean hasNext() {
+            return this.source.hasNext();
+        }
+
+        @Override
+        public T next() {
+            if (this.each != null) {
+                final T item = this.source.next();
+
+                this.each.accept(item);
+
+                return item;
+            }
+
+            return this.source.next();
+        }
+
+        private Each(final Consumer<T> each, final Iterator<T> source) {
+            this.each = each;
+            this.source = source;
+        }
+
+    }
+
+    public static class In<T> implements Iterator<T> {
+        private final Iterator<T> source;
+
+        @Override
+        public boolean hasNext() {
+            return this.source.hasNext();
+        }
+
+        public <X> In<X> derive(final Function<T, X> f) {
+            return new In<>(new Derive<>(f, this.source));
+        }
+
+        public In<T> filter(final Predicate<T> p) {
+            return new In<>(new Filter<>(p, this.source));
+        }
+
+        public In<T> each(final Consumer<T> c) {
+            return new In<>(new Each<>(c, this.source));
+        }
+
+        @Override
+        public T next() {
+            return this.source.next();
+        }
+
+        public <R> R reduce(final BiFunction<R, T, R> b, final R initial) {
+            R current = initial;
+
+            while (this.source.hasNext()) {
+                current = b.apply(current, this.source.next());
+            }
+
+            return current;
+        }
+
+        public void all() {
+            while (this.source.hasNext()) {
+                this.source.next();
+            }
+        }
+
+        public void one() {
+            while (this.source.hasNext()) {
+                this.source.next();
+                return;
+            }
+        }
+
+        private In(final Iterator<T> source) {
+            this.source = source;
+        }
+
+    }
+
+    /**
+     * Produces a chainable collection from the iterable. Given an iterable set of
+     * strings, you operate handlers according to the iteration order:
+     *
+     * <pre>
+     * in(adapt("a", "b", "c", "a"))
+     *     .derive((item) -> item.equals("a") ? 1 : 0)
+     *     .each((item) -> {
+     *         System.out.println("Found '" + item + "'");
+     *     })
+     *     .reduce((item, total) -> {
+     *         return total += item;
+     *     }, 0);
+     *
+     * Found '1'
+     * Found '0'
+     * Found '0'
+     * Found '1'
+     * 2
+     *
+     * in(adapt("a", "b", "c", "a"))
+     *     .filter((item) -> item.equals("a"))
+     *     .each((item) -> {
+     *         System.out.println("Found '" + item + "'");
+     *     })
+     *     .all();
+     *
+     * Found 'a'
+     * Found 'a'
+     *
+     * in(adapt("a", "b", "c", "a"))
+     *     .filter((item) -> item.equals("a"))
+     *     .each((item) -> {
+     *         System.out.println("Found '" + item + "'");
+     *     })
+     *     .one();
+     *
+     * Found 'a'
+     * </pre>
+     *
+     * @param source
+     * @param <T>
+     */
+    public static <T> In<T> in(final Iterator<T> source) {
+        return new In<>(source);
     }
 
 }
